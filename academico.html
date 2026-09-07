@@ -209,6 +209,27 @@
         }
     </style>
 
+    <!-- Anti-parpadeo del Portal de Representantes/Estudiantes: si hay una sesión de estudiante
+         guardada, esta regla oculta el encabezado/menú de docentes DESDE ANTES de que el
+         navegador los pinte — sin esto, se alcanzan a ver un instante mientras el JS principal
+         (más abajo) termina de cargar los datos del portal y recién ahí los oculta. -->
+    <style>
+        html.modo-portal-estudiante-cargando header.no-print,
+        html.modo-portal-estudiante-cargando nav.no-print,
+        html.modo-portal-estudiante-cargando main.container {
+            display: none !important;
+        }
+    </style>
+    <script>
+        // Debe ejecutarse ANTES de que el <body> se pinte — por eso va aquí, en <head>, en vez de
+        // esperar al resto del JS de la app (que solo corre después de cargar todo el documento).
+        try {
+            if (sessionStorage.getItem('sesion_portal_estudiante_uecech')) {
+                document.documentElement.classList.add('modo-portal-estudiante-cargando');
+            }
+        } catch (e) { /* si sessionStorage no está disponible, simplemente no se oculta nada */ }
+    </script>
+
     <!-- ═══════════════════════ Rediseño visual 2026 ═══════════════════════
          Refresco estético de toda la interfaz DE TRABAJO (no toca los documentos imprimibles,
          que mantienen su tipografía Georgia institucional). Objetivos: tipografía más cuidada,
@@ -464,8 +485,11 @@
                 <button onclick="cerrarSesionPortalEstudiante()" class="text-xs underline text-emerald-200">Cerrar sesión</button>
             </div>
         </div>
-        <div id="portal-panel-notificaciones" class="hidden container mx-auto mt-3 bg-white text-slate-800 rounded-lg shadow-lg p-4 max-h-80 overflow-y-auto">
-            <p class="font-bold text-xs uppercase text-slate-500 mb-2">Notificaciones</p>
+        <div id="portal-panel-notificaciones" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 p-4 w-full max-w-md max-h-[70vh] overflow-y-auto mx-4">
+            <div class="flex justify-between items-center mb-2">
+                <p class="font-bold text-xs uppercase text-slate-500">Notificaciones</p>
+                <button onclick="alternarPanelNotificacionesPortal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">×</button>
+            </div>
             <div id="portal-lista-notificaciones" class="space-y-2 text-sm"></div>
         </div>
     </div>
@@ -2628,6 +2652,7 @@
                 } catch (e) {
                     sesionEstudiantePortal = null;
                     sessionStorage.removeItem('sesion_portal_estudiante_uecech');
+                    document.documentElement.classList.remove('modo-portal-estudiante-cargando');
                 }
             }
 
@@ -2824,6 +2849,7 @@
         // dentro de ella, los controles que solo tienen sentido para un/a docente viendo a
         // varios/as estudiantes (selector de modo, casillas de boletín múltiple).
         function mostrarPantallaPortalEstudiante(catalogo, miEstudiante) {
+            document.documentElement.classList.remove('modo-portal-estudiante-cargando');
             document.getElementById('overlay-login').classList.add('hidden');
             document.getElementById('overlay-login-estudiante').classList.add('hidden');
             document.getElementById('overlay-selector-curso').classList.add('hidden');
@@ -11908,7 +11934,8 @@ ${estilosHtml}
                 t1: 'Informe de Progreso de Aprendizaje - 1er Trimestre',
                 t2: 'Informe de Progreso de Aprendizaje - 2do Trimestre',
                 t3: 'Informe de Progreso de Aprendizaje - 3er Trimestre',
-                anual: 'Informe de Progreso de Aprendizaje - Resumen Anual'
+                anual: 'Informe de Progreso de Aprendizaje - Resumen Anual',
+                supletorio: 'Informe de Progreso de Aprendizaje - Anual (luego del Supletorio)'
             };
 
             // --- Bloque 1: Resumen de todas las asignaturas (propia + 12 externas) para el periodo elegido ---
@@ -12127,7 +12154,7 @@ ${estilosHtml}
 
             const selPeriodo = document.getElementById('sel-boletin-periodo');
             const periodo = selPeriodo ? selPeriodo.value : 'anual';
-            const etiquetasPeriodoCorta = { t1: '1er Trimestre', t2: '2do Trimestre', t3: '3er Trimestre', anual: 'Resumen Anual' };
+            const etiquetasPeriodoCorta = { t1: '1er Trimestre', t2: '2do Trimestre', t3: '3er Trimestre', anual: 'Resumen Anual', supletorio: 'Anual (luego del Supletorio)' };
 
             const { filasAsignaturas, promedioGeneral, esAnual } = calcularDatosAsignaturasBoletin(curso, estId, periodo);
 
