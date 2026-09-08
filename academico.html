@@ -661,8 +661,8 @@
     <!-- Modal de Enviar Notificación al Portal de Representantes/Estudiantes: cualquier docente
          asignado al curso activo puede mandar un mensaje a un/a estudiante puntual o a todo el
          curso; se ve en el Portal de la familia apenas entren. -->
-    <div id="overlay-enviar-notificacion" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 no-print">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+    <div id="overlay-enviar-notificacion" class="hidden fixed inset-0 z-50 flex items-start justify-center pt-10 md:pt-16 overflow-y-auto bg-black/50 no-print">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 mb-10">
             <h3 class="font-black text-slate-800 mb-1">📨 Enviar Notificación</h3>
             <p class="text-xs text-slate-500 mb-4">Se verá en el Portal de Representantes/Estudiantes del curso activo (<span id="notif-curso-nombre" class="font-bold"></span>).</p>
             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Destinatario</label>
@@ -2818,6 +2818,7 @@
             if (!contexto.boletinHabilitado) {
                 mostrarPantallaPortalEstudiante(catalogo, null);
                 document.getElementById('boletin-impresion-area').innerHTML = '<p class="text-center text-slate-400 py-10">📋 El Boletín de calificaciones todavía no está habilitado para consulta. Tu docente de acompañamiento debe activarlo primero.</p>';
+                cargarNotificacionesPortal(); // las notificaciones se ven siempre, aunque el Boletín no esté habilitado
                 return;
             }
 
