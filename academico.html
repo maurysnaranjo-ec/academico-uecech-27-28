@@ -3558,6 +3558,23 @@
                                 : (datosMat ? { t1: notaFinalDesdeValorGuardado(datosMat.t1), t2: notaFinalDesdeValorGuardado(datosMat.t2), t3: notaFinalDesdeValorGuardado(datosMat.t3), supletorio: datosMat.supletorio || '' } : { t1: '', t2: '', t3: '', supletorio: '' });
                     });
                 });
+                // CORRECCIÓN (2026-10-03): esta vista general del admin no tiene una "asignatura
+                // propia" (las notas reales viven en otrasMateriasNivel, arriba), así que esto se
+                // dejaba en un objeto vacío {} — pero varias pantallas (Calificaciones, Actas, Informe
+                // de Asignatura, Refuerzo) asumen que SIEMPRE existe curso.calificaciones[estId].t1 /
+                // .t2 / .t3, aunque sea con valores en blanco (ver el mismo razonamiento, ya aplicado,
+                // un poco más abajo en la rama "admin o acompañamiento" clásica). Con {} vacío, apenas
+                // el admin entraba a cualquier curso (todos los niveles usan este modelo desde 2026-07-
+                // 29 — ver NIVELES_ACADEMICOS) esas pantallas fallaban con "Cannot read properties of
+                // undefined (reading 't1')". Se completa aquí con la misma estructura en blanco.
+                const calificacionesVaciasSeguras = {};
+                estudiantesNucleo.forEach(est => {
+                    calificacionesVaciasSeguras[est.id] = {
+                        t1: { insumos: Array(10).fill(''), sumativa: '', proyecto: '', refuerzo: '', refuerzoProyecto: '' },
+                        t2: { insumos: Array(10).fill(''), sumativa: '', proyecto: '', refuerzo: '', refuerzoProyecto: '' },
+                        t3: { insumos: Array(10).fill(''), sumativa: '', proyecto: '', refuerzo: '', refuerzoProyecto: '' }
+                    };
+                });
                 const slot = crearCursoVacioNube(0);
                 Object.assign(slot, {
                     label: cursoCatalogo.grado, paralelo: cursoCatalogo.paralelo, asignatura: '',
@@ -3566,7 +3583,7 @@
                     docenteOVP: nucleo.docenteOVP || '',
                     boletinVisiblePortal: !!nucleo.boletinVisiblePortal,
                     estudiantes: estudiantesNucleo,
-                    calificaciones: {}, supletorios: {},
+                    calificaciones: calificacionesVaciasSeguras, supletorios: {},
                     conducta: nucleo.conducta || {}, asistenciaDiaria: datosNube.asistenciaDiaria || {}, horarios: datosNube.horarios || {}, ovp: nucleo.ovp || {},
                     otrasMaterias: otrasMateriasNivel,
                     nombresAsignaturasNivel: nivelDeEsteCurso.materias || [],
@@ -6698,6 +6715,20 @@ ${estilosHtml}
             return [...(estudiantes || [])].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
         }
 
+        // Envoltorio defensivo de calcularTrimestre(): algunas materias (Ámbitos de Desarrollo y
+        // Aprendizaje de Inicial, OVP) NO usan el formato numérico de insumos — guardan códigos
+        // cualitativos (A+ a E-) por ámbito/indicador en un objeto con otra forma. calcularTrimestre()
+        // ya protege contra que le pasen undefined/null, pero no contra un objeto de otra forma sin
+        // `.insumos` como array — ahí truena con "Cannot read properties of undefined (reading
+        // 'filter')". Aquí, para los reportes consolidados (que recorren TODAS las materias de TODOS
+        // los cursos sin distinguir su tipo), se trata cualquier forma inesperada como "sin nota
+        // numérica para este reporte" en vez de fallar — esas materias cualitativas igual se ven bien
+        // en su propia pantalla (Ámbitos/OVP), solo no encajan en esta tabla numérica genérica.
+        function excelTrimestreSeguro(datosTrimestre) {
+            if (!datosTrimestre || typeof datosTrimestre !== 'object' || !Array.isArray(datosTrimestre.insumos)) return calcularTrimestre(null);
+            return calcularTrimestre(datosTrimestre);
+        }
+
         // Mismo cálculo que excelValorAsignaturaFija (ver más arriba), pero generalizado a CUALQUIER
         // materia por nombre (no solo las de la lista fija de acompañamiento) — para los reportes
         // consolidados, que muestran TODAS las materias que de verdad tengan calificaciones guardadas
@@ -6706,16 +6737,16 @@ ${estilosHtml}
         function excelCalcularValorMateriaPeriodo(calificacionesMateria, estId, periodo) {
             const califs = calificacionesMateria ? calificacionesMateria[estId] : null;
             if (periodo === 'anual') {
-                const t1 = califs ? calcularTrimestre(califs.t1).notaFinal : '';
-                const t2 = califs ? calcularTrimestre(califs.t2).notaFinal : '';
-                const t3 = califs ? calcularTrimestre(califs.t3).notaFinal : '';
+                const t1 = califs ? excelTrimestreSeguro(califs.t1).notaFinal : '';
+                const t2 = califs ? excelTrimestreSeguro(califs.t2).notaFinal : '';
+                const t3 = califs ? excelTrimestreSeguro(califs.t3).notaFinal : '';
                 const conteo = [t1, t2, t3].filter(v => v !== '').length;
                 const prom = conteo === 3 ? ((parseFloat(t1) + parseFloat(t2) + parseFloat(t3)) / 3) : null;
                 return prom === null ? '-' : `${prom.toFixed(2)} (${obtenerEscalaAlfabetica(prom)})`;
             } else if (periodo === 'supletorio') {
-                const t1 = califs ? calcularTrimestre(califs.t1).notaFinal : '';
-                const t2 = califs ? calcularTrimestre(califs.t2).notaFinal : '';
-                const t3 = califs ? calcularTrimestre(califs.t3).notaFinal : '';
+                const t1 = califs ? excelTrimestreSeguro(califs.t1).notaFinal : '';
+                const t2 = califs ? excelTrimestreSeguro(califs.t2).notaFinal : '';
+                const t3 = califs ? excelTrimestreSeguro(califs.t3).notaFinal : '';
                 const conteo = [t1, t2, t3].filter(v => v !== '').length;
                 const prom = conteo === 3 ? ((parseFloat(t1) + parseFloat(t2) + parseFloat(t3)) / 3) : null;
                 if (prom === null) return '-';
@@ -6723,7 +6754,7 @@ ${estilosHtml}
                 const sup = califs ? califs.supletorio : '';
                 return (sup !== '' && sup !== undefined) ? parseFloat(sup).toFixed(2) : '(pendiente)';
             } else {
-                const valor = califs ? calcularTrimestre(califs[periodo]).notaFinal : '';
+                const valor = califs ? excelTrimestreSeguro(califs[periodo]).notaFinal : '';
                 return valor !== '' ? `${valor} (${obtenerEscalaAlfabetica(valor)})` : '-';
             }
         }
