@@ -9508,6 +9508,23 @@ ${estilosHtml}
             return { sumaT1, sumaT2, sumaT3, anualCod: obtenerEscalaAlfabetica(promedioSobre10) };
         }
 
+        // NUEVA NORMATIVA DE REFUERZO ACADÉMICO (2026-10-10), 2do EGB a 3ro BGU, los 3 trimestres, tanto
+        // para Eval./Ref. (Ev/Ref /10) como para Proy./RefP (Proy/RefP /10):
+        //  • Nota inicial de 7,00 a 8,99 + refuerzo rendido → se PROMEDIAN nota inicial y refuerzo; el
+        //    resultado es la nueva nota, con un tope de 9,00.
+        //  • Nota inicial de 0,00 a 6,99 + refuerzo rendido → se PROMEDIAN; el resultado es la nueva
+        //    nota, con un tope de 7,00.
+        //  • Nota inicial de 9,00 o más → no aplica refuerzo; queda la nota inicial.
+        // Se conserva la garantía de siempre: el refuerzo nunca puede dejar la nota por debajo de la
+        // inicial (si el promedio saliera menor, se mantiene la inicial). El 15% de Ev/Ref y de
+        // Proy/RefP y la nota final se calculan igual que antes, sobre este resultado.
+        function aplicarNormativaRefuerzo(notaInicial, notaRefuerzo) {
+            if (notaInicial >= 9) return notaInicial;
+            const tope = notaInicial >= 7 ? 9 : 7;
+            const promedio = (notaInicial + notaRefuerzo) / 2;
+            return Math.max(notaInicial, Math.min(promedio, tope));
+        }
+
         function calcularTrimestre(datosEstudiante) {
             if(!datosEstudiante) return { promedioInsumos: '0.00', equivIns: '0.00', promedioEvalRef: '0.00', equivEvalRef: '0.00', proyectoVal: '0.00', equivProy: '0.00', notaFinal: '' };
             let insumosValidos = datosEstudiante.insumos.filter(v => v !== '' && v !== null && !isNaN(v));
@@ -9515,12 +9532,9 @@ ${estilosHtml}
             if(insumosValidos.length > 0) {
                 promedioInsumos = insumosValidos.reduce((a, b) => parseFloat(a) + parseFloat(b), 0) / insumosValidos.length;
             }
-            // Evaluación Sumativa (EVAL) y Refuerzo (REF): regla institucional (actualizada 2026-08-07)
-            // — si el Refuerzo es igual o MAYOR a la Evaluación, la nota Ev/Ref pasa a ser
-            // directamente la nota del Refuerzo (ya NO se promedia con Eval); si el Refuerzo es MENOR
-            // a la Evaluación, no cambia nada — se mantiene la nota de Evaluación tal cual (el
-            // refuerzo nunca puede bajar la nota). Si solo uno de los dos está digitado, se usa ese
-            // valor directamente (no se penaliza por el campo vacío).
+            // Evaluación Sumativa (EVAL) y Refuerzo (REF): NUEVA NORMATIVA (2026-10-10), 2do EGB a 3ro
+            // BGU — ver aplicarNormativaRefuerzo() justo arriba de esta función. Si solo uno de los dos
+            // está digitado, se usa ese valor directamente (no se penaliza por el campo vacío).
             let sumativaTxt = datosEstudiante.sumativa;
             let refuerzoTxt = datosEstudiante.refuerzo;
             const esNumeroValido = (v) => v !== '' && v !== undefined && v !== null && !isNaN(v);
@@ -9528,7 +9542,7 @@ ${estilosHtml}
             const refuerzoNum = esNumeroValido(refuerzoTxt) ? parseFloat(refuerzoTxt) : null;
             let promedioEvalRef;
             if (sumativaNum !== null && refuerzoNum !== null) {
-                promedioEvalRef = (refuerzoNum >= sumativaNum) ? refuerzoNum : sumativaNum;
+                promedioEvalRef = aplicarNormativaRefuerzo(sumativaNum, refuerzoNum);
             } else if (sumativaNum !== null) {
                 promedioEvalRef = sumativaNum;
             } else if (refuerzoNum !== null) {
@@ -9542,7 +9556,7 @@ ${estilosHtml}
             const refuerzoProyectoNum = esNumeroValido(refuerzoProyectoTxt) ? parseFloat(refuerzoProyectoTxt) : null;
             let proyRefP;
             if (proyectoNum !== null && refuerzoProyectoNum !== null) {
-                proyRefP = (refuerzoProyectoNum >= proyectoNum) ? refuerzoProyectoNum : proyectoNum;
+                proyRefP = aplicarNormativaRefuerzo(proyectoNum, refuerzoProyectoNum);
             } else if (proyectoNum !== null) {
                 proyRefP = proyectoNum;
             } else if (refuerzoProyectoNum !== null) {
