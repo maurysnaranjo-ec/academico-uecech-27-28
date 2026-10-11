@@ -1493,19 +1493,19 @@
                     <table class="w-full border-collapse text-center">
                         <tr class="bg-slate-300 font-bold uppercase"><td colspan="3" class="p-1 border-b border-slate-800">Niveles de Logro</td></tr>
                         <tr class="bg-slate-200 font-bold uppercase divide-x divide-slate-800 border-b border-slate-800">
-                            <td class="p-1 text-left">Escala Cuantitativa</td><td class="p-1 w-10">Nº</td><td class="p-1 w-12">%</td>
+                            <td class="p-1 text-left" id="ia-escala-titulo">Escala Cuantitativa</td><td class="p-1 w-10">Nº</td><td class="p-1 w-12">%</td>
                         </tr>
                         <tr class="divide-x divide-slate-800 border-b border-slate-700">
-                            <td class="p-1 text-left">Destreza o aprendizaje alcanzado (DA)</td><td class="p-1 font-bold" id="ia-n-da">0</td><td class="p-1 font-bold" id="ia-p-da">0%</td>
+                            <td class="p-1 text-left" id="ia-lbl-da">Destreza o aprendizaje alcanzado (DA)</td><td class="p-1 font-bold" id="ia-n-da">0</td><td class="p-1 font-bold" id="ia-p-da">0%</td>
                         </tr>
                         <tr class="divide-x divide-slate-800 border-b border-slate-700">
-                            <td class="p-1 text-left">Alcanza los aprendizajes (A)</td><td class="p-1 font-bold" id="ia-n-a">0</td><td class="p-1 font-bold" id="ia-p-a">0%</td>
+                            <td class="p-1 text-left" id="ia-lbl-a">Alcanza los aprendizajes (A)</td><td class="p-1 font-bold" id="ia-n-a">0</td><td class="p-1 font-bold" id="ia-p-a">0%</td>
                         </tr>
                         <tr class="divide-x divide-slate-800 border-b border-slate-700">
-                            <td class="p-1 text-left">Está próximo a alcanzar (PA)</td><td class="p-1 font-bold" id="ia-n-pa">0</td><td class="p-1 font-bold" id="ia-p-pa">0%</td>
+                            <td class="p-1 text-left" id="ia-lbl-pa">Está próximo a alcanzar (PA)</td><td class="p-1 font-bold" id="ia-n-pa">0</td><td class="p-1 font-bold" id="ia-p-pa">0%</td>
                         </tr>
-                        <tr class="divide-x divide-slate-800">
-                            <td class="p-1 text-left">No alcanza los aprendizajes (NA)</td><td class="p-1 font-bold" id="ia-n-na">0</td><td class="p-1 font-bold" id="ia-p-na">0%</td>
+                        <tr class="divide-x divide-slate-800" id="ia-fila-na">
+                            <td class="p-1 text-left" id="ia-lbl-na">No alcanza los aprendizajes (NA)</td><td class="p-1 font-bold" id="ia-n-na">0</td><td class="p-1 font-bold" id="ia-p-na">0%</td>
                         </tr>
                     </table>
                     <div class="bg-slate-300 flex flex-col items-center justify-center p-2">
@@ -1520,10 +1520,10 @@
                                 <td class="p-1 text-left">Análisis Promedios</td><td class="p-1 w-10">Nº</td><td class="p-1 w-12">%</td>
                             </tr>
                             <tr class="divide-x divide-slate-800 border-b border-slate-700">
-                                <td class="p-1 text-left">Igual o Superior a <span style="text-decoration: overline;">X</span></td><td class="p-1 font-bold" id="ia-n-superior">0</td><td class="p-1 font-bold" id="ia-p-superior">0%</td>
+                                <td class="p-1 text-left" id="ia-lbl-superior">Igual o Superior a <span style="text-decoration: overline;">X</span></td><td class="p-1 font-bold" id="ia-n-superior">0</td><td class="p-1 font-bold" id="ia-p-superior">0%</td>
                             </tr>
                             <tr class="divide-x divide-slate-800">
-                                <td class="p-1 text-left">Inferiores a <span style="text-decoration: overline;">X</span></td><td class="p-1 font-bold" id="ia-n-inferior">0</td><td class="p-1 font-bold" id="ia-p-inferior">0%</td>
+                                <td class="p-1 text-left" id="ia-lbl-inferior">Inferiores a <span style="text-decoration: overline;">X</span></td><td class="p-1 font-bold" id="ia-n-inferior">0</td><td class="p-1 font-bold" id="ia-p-inferior">0%</td>
                             </tr>
                         </table>
                         <div class="relative w-full h-28 p-1 chart-container-print-safe">
@@ -2992,19 +2992,49 @@
             abrirCambiarClave(true);
         }
 
+        // CORRECCIÓN (2026-10-11): "Cerrar sesión" se sentía lento y a veces había que pulsarlo varias
+        // veces. Causas: (1) cuando NO había nada pendiente por guardar, el botón no se deshabilitaba ni
+        // mostraba nada mientras se esperaba la respuesta del servidor (Apps Script puede tardar
+        // varios segundos solo en responder) — así que cada clic extra lanzaba OTRO cierre de sesión;
+        // (2) si el guardado pendiente fallaba con una excepción, el cierre se abortaba por completo y
+        // el botón quedaba "muerto" hasta pulsarlo de nuevo; (3) se esperaba (await) la respuesta de
+        // cerrarSesion del servidor antes de recargar, aunque ese aviso es solo informativo.
+        // Ahora: un solo cierre a la vez, retroalimentación inmediata en TODOS los botones de cerrar
+        // sesión, el último cambio sigue guardándose antes de salir (igual que antes), y el aviso al
+        // servidor se envía sin esperar su respuesta (keepalive: llega aunque la página se recargue).
+        let cerrandoSesionNube = false;
         async function cerrarSesionNube() {
+            if (cerrandoSesionNube) return; // ya se está cerrando: se ignoran los clics repetidos
+            cerrandoSesionNube = true;
+            const botonesCerrar = document.querySelectorAll('[onclick="cerrarSesionNube()"]');
+            const poner = (txt) => botonesCerrar.forEach(b => { if (!b.dataset.textoOriginal) b.dataset.textoOriginal = b.innerText; b.disabled = true; b.innerText = txt; });
+            poner('⏳ Cerrando sesión...');
             // Si había una nota recién digitada (guardado programado, aún no enviado), se fuerza a
             // que termine de guardarse ANTES de cerrar sesión — así nunca se pierde el último cambio.
             // Esto cubre TANTO el guardado general (calificaciones/núcleo) COMO la asistencia diaria y
             // los horarios, que se guardan por su cuenta con su propio temporizador independiente.
+            // Cada paso va protegido: un fallo al guardar ya se avisa en pantalla (marcarGuardadoError)
+            // y NO debe impedir que la sesión se cierre.
             if (temporizadorGuardadoNube || temporizadorAsistenciaDiaria || temporizadorHorario || temporizadorGuardadoDocente) {
-                document.querySelectorAll('[onclick="cerrarSesionNube()"]').forEach(b => { b.disabled = true; b.dataset.textoOriginal = b.innerText; b.innerText = '⏳ Guardando...'; });
-                await guardarInmediatoNube();
-                await guardarInmediatoAsistenciaDiaria();
-                await guardarInmediatoHorario();
-                if (temporizadorGuardadoDocente) await guardarMisDatosDocenteInmediato();
+                poner('⏳ Guardando cambios...');
+                try { await guardarInmediatoNube(); } catch (e) { /* ya se avisó en pantalla */ }
+                try { await guardarInmediatoAsistenciaDiaria(); } catch (e) { /* idem */ }
+                try { await guardarInmediatoHorario(); } catch (e) { /* idem */ }
+                try { if (temporizadorGuardadoDocente) await guardarMisDatosDocenteInmediato(); } catch (e) { /* idem */ }
+                poner('⏳ Cerrando sesión...');
             }
-            try { await llamarAPI('cerrarSesion', {}); } catch (e) { /* no crítico */ }
+            // Aviso al servidor (borra el token de la hoja de sesiones): informativo, no se espera.
+            const tokenAnterior = sesionActual && sesionActual.token;
+            if (tokenAnterior) {
+                try {
+                    fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ accion: 'cerrarSesion', token: tokenAnterior }),
+                        keepalive: true
+                    }).catch(() => { /* no crítico */ });
+                } catch (e) { /* no crítico */ }
+            }
             sesionActual = null;
             idCursoActivoNube = null;
             cursoCatalogoActivo = null;
@@ -11583,7 +11613,7 @@ ${estilosHtml}
                 return;
             }
 
-            let contadores = { DA: 0, A: 0, PA: 0, NA: 0, SinNota: 0 };
+            let contadores = { DA: 0, A: 0, PA: 0, NA: 0, SinNota: 0, ALC: 0, PRO: 0, INI: 0 }; // ALC/PRO/INI: 2do-4to EGB (cualitativo)
             let tablaHTML = '';
             // 2do-4to EGB (2026-10-10): el acta muestra letras A+ a E- en vez de números. Los cálculos
             // internos no cambian (siguen usando los equivalentes numéricos ya redondeados).
@@ -11653,6 +11683,7 @@ ${estilosHtml}
                         }
                         let eq = obtenerEquivalenciaRGLOEI(promFinal);
                         if(contadores[eq.sigla] !== undefined) contadores[eq.sigla]++;
+                        if(esCualActa) { const r = Math.round(parseFloat(promFinal)); if(r >= 7) contadores.ALC++; else if(r >= 5) contadores.PRO++; else contadores.INI++; }
                     } else {
                         contadores.SinNota++;
                     }
@@ -11727,6 +11758,7 @@ ${estilosHtml}
                     if (notaF !== '') {
                         let eq = obtenerEquivalenciaRGLOEI(notaF);
                         if(contadores[eq.sigla] !== undefined) contadores[eq.sigla]++;
+                        if(esCualActa) { const r = Math.round(parseFloat(notaF)); if(r >= 7) contadores.ALC++; else if(r >= 5) contadores.PRO++; else contadores.INI++; }
                         
                         if (parseFloat(notaF) < 7.00) {
                             requiereRefuerzo = '⚠️ APREMIANTE';
@@ -11759,7 +11791,7 @@ ${estilosHtml}
             }
 
             contenedorTabla.innerHTML = tablaHTML;
-            renderizarBloqueEstadisticoYGrafico(contadores);
+            renderizarBloqueEstadisticoYGrafico(contadores, esCualActa);
         }
 
         // Reporte "Informes y Actas" para un curso cuya Asignatura Específica es OVP: en vez del cuadro
@@ -12137,7 +12169,54 @@ ${estilosHtml}
             renderizarActaAnualYEstadisticas();
         }
 
-        function renderizarBloqueEstadisticoYGrafico(c) {
+        // 2do-4to EGB (2026-10-11): "Distribución de Logros del Periodo" y su diagrama de barras con los 3
+        // niveles de la escala cualitativa: A+ a B- (alcanzado), C+ a C- (en proceso de desarrollo) y
+        // D+ a E- (iniciado) — en lugar de DA/A/PA/NA por rangos numéricos.
+        function renderizarBloqueEstadisticoCualitativoElemental(c) {
+            const contenedor = document.getElementById('bloque-estadistico-logros');
+            if(!contenedor) return;
+            const total = c.ALC + c.PRO + c.INI;
+            const pct = (v) => total > 0 ? ((v / total) * 100).toFixed(1) : 0;
+            contenedor.innerHTML = `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider border-b pb-1 text-center">📈 Distribución de Logros del Periodo Seleccionado</h3>
+                <div class="grid grid-cols-1 gap-2 text-xs">
+                    <div class="p-2 bg-emerald-50 rounded border border-emerald-200">
+                        <span class="font-bold text-emerald-800">Destreza o aprendizaje alcanzado (A+ a B-):</span> <b class="text-sm text-emerald-900">${c.ALC}</b> <span class="text-slate-400 text-[10px]">(${pct(c.ALC)}%)</span>
+                    </div>
+                    <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                        <span class="font-bold text-amber-800">Destreza o aprendizaje en proceso de desarrollo (C+ a C-):</span> <b class="text-sm text-amber-900">${c.PRO}</b> <span class="text-slate-400 text-[10px]">(${pct(c.PRO)}%)</span>
+                    </div>
+                    <div class="p-2 bg-red-50 rounded border border-red-200">
+                        <span class="font-bold text-red-800">Destreza o aprendizaje iniciado (D+ a E-):</span> <b class="text-sm text-red-900">${c.INI}</b> <span class="text-slate-400 text-[10px]">(${pct(c.INI)}%)</span>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-400 text-center">Total evaluados en esta vista: ${total} alumno(s).</p>
+            </div>`;
+            const ctx = document.getElementById('canvas-grafico-barras');
+            if(!ctx) return;
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Alcanzado (A+ a B-)', 'En proceso (C+ a C-)', 'Iniciado (D+ a E-)'],
+                    datasets: [{
+                        label: 'Número de Alumnos',
+                        data: [c.ALC, c.PRO, c.INI],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderizarBloqueEstadisticoYGrafico(c, esCualitativoElemental) {
             const contenedor = document.getElementById('bloque-estadistico-logros');
             if(!contenedor) return;
             // Restaura la fila estadística "de una sola columna" (por si el curso anterior mostrado
@@ -12146,6 +12225,7 @@ ${estilosHtml}
             const filaCualNorm = document.getElementById('fila-estadistico-cualitativo');
             if (filaNumNorm) filaNumNorm.classList.remove('hidden');
             if (filaCualNorm) { filaCualNorm.classList.add('hidden'); filaCualNorm.innerHTML = ''; }
+            if (esCualitativoElemental) { renderizarBloqueEstadisticoCualitativoElemental(c); return; }
             
             let totalValidos = c.DA + c.A + c.PA + c.NA;
             let pDA = totalValidos > 0 ? ((c.DA/totalValidos)*100).toFixed(1) : 0;
@@ -12352,7 +12432,11 @@ ${estilosHtml}
         // (nota < 7) y aviso de no promovidos (promedio anual/supletorio < 4). Extraída tal cual estaba
         // antes de renderizarInformeAsignatura() para poder alternar con la variante cualitativa.
         function renderizarResultadosNumericosInformeAsignatura(curso, periodo) {
-            let contadores = { DA: 0, A: 0, PA: 0, NA: 0 };
+            let contadores = { DA: 0, A: 0, PA: 0, NA: 0, ALC: 0, PRO: 0, INI: 0 };
+            // 2do-4to EGB (2026-10-11): escala CUALITATIVA — 3 niveles (A+ a B- / C+ a C- / D+ a E-), promedio
+            // del curso como letra y "Resultados Globales" comparados contra la media en letras.
+            const esCualIA = esCursoCualitativoElemental(curso);
+            const fmtNp = (v) => esCualIA ? numeroALetraCualitativa(v) : parseFloat(v).toFixed(2);
             let sumaNotas = 0, totalConNota = 0;
             let notasValidas = []; // [{nombre, nota}], para el análisis de promedios (vs. la media del curso)
             let listaDificultades = [];
@@ -12369,9 +12453,10 @@ ${estilosHtml}
                 notasValidas.push({ nombre: est.nombre, nota: n });
                 const eq = obtenerEquivalenciaRGLOEI(n);
                 if(contadores[eq.sigla] !== undefined) contadores[eq.sigla]++;
+                if(esCualIA) { const r = Math.round(n); if(r >= 7) contadores.ALC++; else if(r >= 5) contadores.PRO++; else contadores.INI++; }
                 if(n < 7.00) listaDificultades.push({ nombre: est.nombre, nota: n });
                 if(periodo === 'anual' && n < 4.00) {
-                    listaNoPromovidos.push({ nombre: est.nombre, nota: n.toFixed(2), motivo: 'anual' });
+                    listaNoPromovidos.push({ nombre: est.nombre, nota: fmtNp(n), motivo: 'anual' });
                 }
                 if(periodo === 'anual_supletorio') {
                     // "n" (de obtenerNotaPorPeriodo) ya resuelve el caso "anual < 4" y el caso
@@ -12383,13 +12468,14 @@ ${estilosHtml}
                     const t3D = calcularTrimestre(curso.calificaciones[est.id].t3).notaFinal;
                     const conteoD = [t1D, t2D, t3D].filter(v => v !== '').length;
                     if(conteoD === 3) {
-                        const promAnualD = (parseFloat(t1D) + parseFloat(t2D) + parseFloat(t3D)) / 3;
+                        let promAnualD = (parseFloat(t1D) + parseFloat(t2D) + parseFloat(t3D)) / 3;
+                        if(esCualIA) promAnualD = Math.round(promAnualD); // letra más cercana
                         if(promAnualD < 4.00) {
-                            listaNoPromovidos.push({ nombre: est.nombre, nota: promAnualD.toFixed(2), motivo: 'anual' });
+                            listaNoPromovidos.push({ nombre: est.nombre, nota: fmtNp(promAnualD), motivo: 'anual' });
                         } else if(promAnualD < 7.00) {
                             const supD = curso.supletorios[est.id];
                             if(supD !== '' && supD !== undefined && parseFloat(supD) < 7.00) {
-                                listaNoPromovidos.push({ nombre: est.nombre, nota: parseFloat(supD).toFixed(2), motivo: 'supletorio' });
+                                listaNoPromovidos.push({ nombre: est.nombre, nota: fmtNp(supD), motivo: 'supletorio' });
                             }
                         }
                     }
@@ -12397,30 +12483,61 @@ ${estilosHtml}
             });
 
             const promCurso = totalConNota > 0 ? (sumaNotas/totalConNota) : 0;
-            document.getElementById('ia-promedio-curso').innerText = totalConNota > 0 ? promCurso.toFixed(2) : '#¡DIV/0!';
+            document.getElementById('ia-promedio-curso').innerText = totalConNota > 0 ? (esCualIA ? numeroALetraCualitativa(promCurso) : promCurso.toFixed(2)) : '#¡DIV/0!';
 
             const elRango = document.getElementById('ia-rango-promedio');
             if(elRango) {
                 if(totalConNota > 0) {
-                    const eqCurso = obtenerEquivalenciaRGLOEI(promCurso);
-                    elRango.innerText = `${eqCurso.desc} (${eqCurso.sigla})`;
+                    if (esCualIA) {
+                        elRango.innerText = nivelDestrezaCualitativa(promCurso).largo;
+                    } else {
+                        const eqCurso = obtenerEquivalenciaRGLOEI(promCurso);
+                        elRango.innerText = `${eqCurso.desc} (${eqCurso.sigla})`;
+                    }
                 } else {
                     elRango.innerText = '-';
                 }
             }
 
             let nSuperior = 0, nInferior = 0;
-            notasValidas.forEach(item => { if(item.nota >= promCurso) nSuperior++; else nInferior++; });
+            // 2do-4to EGB: la comparación con la media se hace entre LETRAS (equivalentes redondeados).
+            const mediaCualRedondeada = Math.round(promCurso);
+            notasValidas.forEach(item => {
+                const supera = esCualIA ? (Math.round(item.nota) >= mediaCualRedondeada) : (item.nota >= promCurso);
+                if(supera) nSuperior++; else nInferior++;
+            });
+            const letraMedia = (esCualIA && totalConNota > 0) ? numeroALetraCualitativa(promCurso) : '';
 
             const pct = (v) => totalConNota > 0 ? ((v/totalConNota)*100).toFixed(1) + '%' : '#¡DIV/0!';
-            document.getElementById('ia-n-da').innerText = contadores.DA;
-            document.getElementById('ia-p-da').innerText = pct(contadores.DA);
-            document.getElementById('ia-n-a').innerText = contadores.A;
-            document.getElementById('ia-p-a').innerText = pct(contadores.A);
-            document.getElementById('ia-n-pa').innerText = contadores.PA;
-            document.getElementById('ia-p-pa').innerText = pct(contadores.PA);
-            document.getElementById('ia-n-na').innerText = contadores.NA;
-            document.getElementById('ia-p-na').innerText = pct(contadores.NA);
+            // Escala: cuantitativa (DA/A/PA/NA) o cualitativa de 3 niveles (2do-4to EGB).
+            const setTxt = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
+            const filaNA = document.getElementById('ia-fila-na');
+            if (esCualIA) {
+                setTxt('ia-escala-titulo', 'Escala Cualitativa');
+                setTxt('ia-lbl-da', 'Destreza o aprendizaje alcanzado (A+ a B-)');
+                setTxt('ia-lbl-a', 'Destreza o aprendizaje en proceso de desarrollo (C+ a C-)');
+                setTxt('ia-lbl-pa', 'Destreza o aprendizaje iniciado (D+ a E-)');
+                if (filaNA) filaNA.classList.add('hidden');
+                setTxt('ia-n-da', contadores.ALC); setTxt('ia-p-da', pct(contadores.ALC));
+                setTxt('ia-n-a', contadores.PRO);  setTxt('ia-p-a', pct(contadores.PRO));
+                setTxt('ia-n-pa', contadores.INI); setTxt('ia-p-pa', pct(contadores.INI));
+                setTxt('ia-n-na', 0); setTxt('ia-p-na', '');
+            } else {
+                setTxt('ia-escala-titulo', 'Escala Cuantitativa');
+                setTxt('ia-lbl-da', 'Destreza o aprendizaje alcanzado (DA)');
+                setTxt('ia-lbl-a', 'Alcanza los aprendizajes (A)');
+                setTxt('ia-lbl-pa', 'Está próximo a alcanzar (PA)');
+                if (filaNA) filaNA.classList.remove('hidden');
+                setTxt('ia-n-da', contadores.DA); setTxt('ia-p-da', pct(contadores.DA));
+                setTxt('ia-n-a', contadores.A);   setTxt('ia-p-a', pct(contadores.A));
+                setTxt('ia-n-pa', contadores.PA); setTxt('ia-p-pa', pct(contadores.PA));
+                setTxt('ia-n-na', contadores.NA); setTxt('ia-p-na', pct(contadores.NA));
+            }
+            // Resultados Globales: en 2do-4to EGB la media X̄ se expresa como letra.
+            const lblSup = document.getElementById('ia-lbl-superior');
+            const lblInf = document.getElementById('ia-lbl-inferior');
+            if (lblSup) lblSup.innerHTML = 'Igual o Superior a <span style="text-decoration: overline;">X</span>' + (esCualIA && letraMedia ? ` (${letraMedia})` : '');
+            if (lblInf) lblInf.innerHTML = 'Inferiores a <span style="text-decoration: overline;">X</span>' + (esCualIA && letraMedia ? ` (${letraMedia})` : '');
 
             document.getElementById('ia-n-superior').innerText = nSuperior;
             document.getElementById('ia-p-superior').innerText = pct(nSuperior);
@@ -12448,7 +12565,7 @@ ${estilosHtml}
                 tbodyDest.innerHTML = `<tr><td colspan="3" class="p-2 text-slate-400 italic">Sin estudiantes con NEE en este curso.</td></tr>`;
             } else {
                 listaNEE.forEach((item, idx) => {
-                    const notaTxt = (item.nota !== '' && item.nota !== undefined) ? parseFloat(item.nota).toFixed(2) : '-';
+                    const notaTxt = (item.nota !== '' && item.nota !== undefined) ? (esCualIA ? numeroALetraCualitativa(item.nota) : parseFloat(item.nota).toFixed(2)) : '-';
                     tbodyDest.innerHTML += `<tr class="divide-x divide-slate-300"><td class="p-1 font-bold text-slate-400 w-8">${idx+1}</td><td class="p-1 text-left">${item.nombre}</td><td class="p-1 font-bold">${notaTxt}</td></tr>`;
                 });
             }
@@ -12458,15 +12575,15 @@ ${estilosHtml}
             if(listaNoPromovidos.length > 0) {
                 bloqueNoProm.classList.remove('hidden');
                 listaNoPromEl.innerHTML = listaNoPromovidos.map(np => np.motivo === 'supletorio'
-                    ? `<li>• <strong>${np.nombre}</strong> no es promovido/a: rindió el examen supletorio de <strong>${curso.asignatura || 'esta asignatura'}</strong> y obtuvo <strong>${np.nota}</strong> (inferior a 7), por lo que pierde el año.</li>`
-                    : `<li>• <strong>${np.nombre}</strong> no es promovido/a: en el promedio anual obtuvo <strong>${np.nota}</strong> (inferior a 4) en la asignatura de <strong>${curso.asignatura || 'esta asignatura'}</strong>, por lo que no puede presentarse al examen supletorio en ninguna materia.</li>`
+                    ? `<li>• <strong>${np.nombre}</strong> no es promovido/a: rindió el examen supletorio de <strong>${curso.asignatura || 'esta asignatura'}</strong> y obtuvo <strong>${np.nota}</strong> (inferior a ${esCualIA ? 'B-' : '7'}), por lo que pierde el año.</li>`
+                    : `<li>• <strong>${np.nombre}</strong> no es promovido/a: en el promedio anual obtuvo <strong>${np.nota}</strong> (inferior a ${esCualIA ? 'D+' : '4'}) en la asignatura de <strong>${curso.asignatura || 'esta asignatura'}</strong>, por lo que no puede presentarse al examen supletorio en ninguna materia.</li>`
                 ).join('');
             } else {
                 bloqueNoProm.classList.add('hidden');
                 listaNoPromEl.innerHTML = '';
             }
 
-            renderizarGraficosInformeAsignatura(contadores, nSuperior, nInferior, listaNEE);
+            renderizarGraficosInformeAsignatura(contadores, nSuperior, nInferior, listaNEE, esCualIA, letraMedia);
         }
 
         // Sección "2. Resultados de Aprendizaje" (y 3-4) para Ámbitos de Desarrollo/Aprendizaje
@@ -12586,14 +12703,14 @@ ${estilosHtml}
             }
         }
 
-        function renderizarGraficosInformeAsignatura(contadores, nSuperior, nInferior, listaNEE) {
+        function renderizarGraficosInformeAsignatura(contadores, nSuperior, nInferior, listaNEE, esCualIA, letraMedia) {
             const ctxGlobales = document.getElementById('ia-canvas-globales');
             if(ctxGlobales) {
                 if(chartInformeGlobales) chartInformeGlobales.destroy();
                 chartInformeGlobales = new Chart(ctxGlobales, {
                     type: 'bar',
                     data: {
-                        labels: ['Igual o Sup. a la Media', 'Inferiores a la Media'],
+                        labels: esCualIA ? [`Igual o Sup. a la media${letraMedia ? ' (' + letraMedia + ')' : ''}`, `Inferiores a la media${letraMedia ? ' (' + letraMedia + ')' : ''}`] : ['Igual o Sup. a la Media', 'Inferiores a la Media'],
                         datasets: [{ data: [nSuperior, nInferior], backgroundColor: ['#3b82f6', '#f59e0b'], borderWidth: 1 }]
                     },
                     options: {
@@ -12628,7 +12745,7 @@ ${estilosHtml}
                             legend: { display: false }
                         },
                         scales: {
-                            y: { beginAtZero: true, max: 10, ticks: { stepSize: 2, font: { size: 8 }, callback: (v) => v.toFixed(2) } },
+                            y: { beginAtZero: true, max: 10, ticks: { stepSize: 2, font: { size: 8 }, callback: (v) => esCualIA ? (v >= 1 ? numeroALetraCualitativa(v) : '') : v.toFixed(2) } },
                             x: { ticks: { font: { size: 8 } } }
                         }
                     }
