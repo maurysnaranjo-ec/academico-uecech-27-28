@@ -6465,15 +6465,15 @@ ${estilosHtml}
                     // 2do-4to EGB: letras A+ a E-; las columnas de 70 %/15 % no aplican como letra.
                     const tiene = calc.notaFinal !== '';
                     const Lx = (v) => tiene ? numeroALetraCualitativa(v) : '-';
-                    return [idx + 1, e.nombre || '', e.nee || 'Ninguna', Lx(calc.promedioInsumos), Lx(calc.promedioEvalRef), Lx(calc.proyectoVal), Lx(calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-', requiereRefuerzo];
+                    return [idx + 1, e.nombre || '', e.nee || 'Ninguna', Lx(calc.promedioInsumos), Lx(calc.promedioInsumos), Lx(calc.promedioEvalRef), Lx(calc.promedioEvalRef), Lx(calc.proyectoVal), Lx(calc.proyectoVal), Lx(calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-', requiereRefuerzo];
                 }
                 const eq = calc.notaFinal !== '' ? obtenerEquivalenciaRGLOEI(calc.notaFinal).sigla : '-';
                 return [idx + 1, e.nombre || '', e.nee || 'Ninguna', calc.promedioInsumos, calc.equivIns, calc.promedioEvalRef, calc.equivEvalRef, calc.proyectoVal, calc.equivProy, calc.notaFinal || '-', eq, requiereRefuerzo];
             });
             if (cualActaX) {
                 excelCrearHojaTabla(XLSXE, wb, usados, `Acta ${etiqueta}`, `ACTA DE CALIFICACIONES — ${etiqueta.toUpperCase()} (CUALITATIVA A+ a E-)`,
-                    ['N°', 'Apellidos y Nombres', 'NEE', 'Prom. Insumos', 'Eval./Refuerzo', 'Proyecto', 'Calificación Trimestral', 'Nivel de logro', 'Plan Refuerzo'],
-                    filas, [5, 36, 14, 14, 14, 12, 16, 14, 16]);
+                    ['N°', 'Apellidos y Nombres', 'NEE', 'P.Insumos', 'P.Insumos (70%)', 'Eval/Ref', 'Eval/Ref (15%)', 'Proyecto', 'Proyecto (15%)', 'Calificación Trimestral', 'Nivel de logro', 'Plan Refuerzo'],
+                    filas, [5, 36, 14, 12, 12, 12, 12, 12, 12, 16, 14, 16]);
                 return;
             }
             excelCrearHojaTabla(XLSXE, wb, usados, `Acta ${etiqueta}`, `ACTA DE CALIFICACIONES — ${etiqueta.toUpperCase()}`,
@@ -11777,11 +11777,11 @@ ${estilosHtml}
                         <td class="p-2 text-left font-bold uppercase text-slate-900">${est.nombre}</td>
                         <td class="p-2 font-medium text-purple-800">${est.nee}</td>
                         <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.promedioInsumos) : '-') : calc.promedioInsumos}</td>
-                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? '—' : calc.equivIns}</td>
+                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (notaF ? letraActa(calc.promedioInsumos) : '-') : calc.equivIns}</td>
                         <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.promedioEvalRef) : '-') : calc.promedioEvalRef}</td>
-                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? '—' : calc.equivEvalRef}</td>
+                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (notaF ? letraActa(calc.promedioEvalRef) : '-') : calc.equivEvalRef}</td>
                         <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.proyectoVal) : '-') : calc.proyectoVal}</td>
-                        <td class="p-2 font-mono bg-indigo-50 text-indigo-900">${esCualActa ? '—' : calc.equivProy}</td>
+                        <td class="p-2 font-mono bg-indigo-50 text-indigo-900">${esCualActa ? (notaF ? letraActa(calc.proyectoVal) : '-') : calc.equivProy}</td>
                         <td class="p-2 font-black text-white bg-slate-900 font-mono text-sm">${(esCualActa ? letraActa(notaF) : notaF) || '-'}</td>
                         <td class="p-2 font-black text-slate-800 bg-slate-100">${notaF ? (esCualActa ? nivelDestrezaCualitativa(notaF).corto : obtenerEquivalenciaRGLOEI(notaF).sigla) : '-'}</td>
                         <td class="p-2 text-xxs ${claseRefuerzo}">${requiereRefuerzo}</td>
