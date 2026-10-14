@@ -6326,8 +6326,8 @@ ${estilosHtml}
                 if (cualExcel) {
                     // 2do-4to EGB (calificación cualitativa): todo en letras A+ a E-, con el nivel de logro.
                     const tiene = calc.notaFinal !== '';
-                    const Lx = (v) => tiene ? numeroALetraCualitativa(v) : '-';
-                    return [idx + 1, e.cedula || '', e.nombre || '', e.nee || 'Ninguna', Lx(calc.promedioInsumos), Lx(calc.promedioEvalRef), Lx(calc.proyectoVal), Lx(calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-'];
+                    const Lc = (ok, v) => ok ? numeroALetraCualitativa(v) : '-';
+                    return [idx + 1, e.cedula || '', e.nombre || '', e.nee || 'Ninguna', Lc(calc.tieneInsumos, calc.promedioInsumos), Lc(calc.tieneEvalRef, calc.promedioEvalRef), Lc(calc.tieneProy, calc.proyectoVal), Lc(tiene, calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-'];
                 }
                 const eq = calc.notaFinal !== '' ? obtenerEquivalenciaRGLOEI(calc.notaFinal).sigla : '-';
                 return [idx + 1, e.cedula || '', e.nombre || '', e.nee || 'Ninguna', calc.promedioInsumos, calc.promedioEvalRef, calc.proyectoVal, calc.notaFinal || '-', eq];
@@ -6464,8 +6464,9 @@ ${estilosHtml}
                 if (cualActaX) {
                     // 2do-4to EGB: letras A+ a E-; las columnas de 70 %/15 % no aplican como letra.
                     const tiene = calc.notaFinal !== '';
-                    const Lx = (v) => tiene ? numeroALetraCualitativa(v) : '-';
-                    return [idx + 1, e.nombre || '', e.nee || 'Ninguna', Lx(calc.promedioInsumos), Lx(calc.promedioInsumos), Lx(calc.promedioEvalRef), Lx(calc.promedioEvalRef), Lx(calc.proyectoVal), Lx(calc.proyectoVal), Lx(calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-', requiereRefuerzo];
+                    const Lc = (ok, v) => ok ? numeroALetraCualitativa(v) : '-';
+                    const lIns = Lc(calc.tieneInsumos, calc.promedioInsumos), lEv = Lc(calc.tieneEvalRef, calc.promedioEvalRef), lPy = Lc(calc.tieneProy, calc.proyectoVal);
+                    return [idx + 1, e.nombre || '', e.nee || 'Ninguna', lIns, lIns, lEv, lEv, lPy, lPy, Lc(tiene, calc.notaFinal), tiene ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-', requiereRefuerzo];
                 }
                 const eq = calc.notaFinal !== '' ? obtenerEquivalenciaRGLOEI(calc.notaFinal).sigla : '-';
                 return [idx + 1, e.nombre || '', e.nee || 'Ninguna', calc.promedioInsumos, calc.equivIns, calc.promedioEvalRef, calc.equivEvalRef, calc.proyectoVal, calc.equivProy, calc.notaFinal || '-', eq, requiereRefuerzo];
@@ -9750,6 +9751,15 @@ ${estilosHtml}
 
             let notaFinal = equivIns + equivEvalRef + equivProy;
             if (modoCualitativo) notaFinal = Math.round(notaFinal);
+            // Qué componentes tienen realmente un valor digitado. En 2do-4to EGB (calificación cualitativa) un
+            // componente SIN digitar ya no cuenta como 0 ("E-") en pantalla: su columna calculada queda en
+            // blanco, y la calificación final del trimestre solo se calcula cuando están los 3 componentes
+            // (insumos, Eval./Ref. y Proy./RefP) — así no aparece una letra final PARCIAL e incorrecta (ni un
+            // falso ingreso a Plan de Refuerzo) mientras el trimestre todavía se está calificando.
+            const tieneInsumos = insumosValidos.length > 0;
+            const tieneEvalRef = sumativaNum !== null || refuerzoNum !== null;
+            const tieneProy = proyectoNum !== null || refuerzoProyectoNum !== null;
+            const completoCualitativo = tieneInsumos && tieneEvalRef && tieneProy;
             const hayDatos = insumosValidos.length > 0 || datosEstudiante.sumativa!=='' || datosEstudiante.refuerzo!=='' || datosEstudiante.proyecto!=='' || datosEstudiante.refuerzoProyecto!=='';
             const resultado = {
                 promedioInsumos: promedioInsumos.toFixed(2),
@@ -9759,8 +9769,9 @@ ${estilosHtml}
                 proyectoVal: proyRefP.toFixed(2),
                 equivProy: equivProy.toFixed(2),
                 sumativaReal: promedioEvalRef,
-                notaFinal: hayDatos ? notaFinal.toFixed(2) : '',
-                esCualitativo: modoCualitativo
+                notaFinal: (hayDatos && (!modoCualitativo || completoCualitativo)) ? notaFinal.toFixed(2) : '',
+                esCualitativo: modoCualitativo,
+                tieneInsumos, tieneEvalRef, tieneProy
             };
             return resultado;
         }
@@ -10010,13 +10021,13 @@ ${estilosHtml}
                 <tr class="hover:bg-slate-50 border-b divide-x text-[11px]">
                     <td class="p-1.5 text-left font-semibold uppercase truncate max-w-xs">${escaparHtml(est.nombre)} <span class="text-[9px] text-purple-800 font-bold">(${escaparHtml(est.nee)})</span></td>
                     ${insHTML}
-                    <td id="pins-${tKey}-${est.id}" class="p-1 font-bold text-slate-600 bg-slate-50">${tieneNota ? numeroALetraCualitativa(calc.promedioInsumos) : '-'}</td>
+                    <td id="pins-${tKey}-${est.id}" class="p-1 font-bold text-slate-600 bg-slate-50">${calc.tieneInsumos ? numeroALetraCualitativa(calc.promedioInsumos) : '-'}</td>
                     ${celda('sumativa', null, 'bg-emerald-50')}
                     ${celda('refuerzo', null, 'bg-amber-50')}
-                    <td id="evalref-${tKey}-${est.id}" class="p-1 font-bold text-emerald-800 bg-emerald-50">${tieneNota ? numeroALetraCualitativa(calc.promedioEvalRef) : '-'}</td>
+                    <td id="evalref-${tKey}-${est.id}" class="p-1 font-bold text-emerald-800 bg-emerald-50">${calc.tieneEvalRef ? numeroALetraCualitativa(calc.promedioEvalRef) : '-'}</td>
                     ${celda('proyecto', null, 'bg-indigo-50')}
                     ${celda('refuerzoProyecto', null, 'bg-amber-50')}
-                    <td id="proyrefp-${tKey}-${est.id}" class="p-1 font-bold text-indigo-800 bg-indigo-100">${tieneNota ? numeroALetraCualitativa(calc.proyectoVal) : '-'}</td>
+                    <td id="proyrefp-${tKey}-${est.id}" class="p-1 font-bold text-indigo-800 bg-indigo-100">${calc.tieneProy ? numeroALetraCualitativa(calc.proyectoVal) : '-'}</td>
                     <td id="final-${tKey}-${est.id}" class="p-1 font-black text-white bg-slate-800 text-sm">${tieneNota ? numeroALetraCualitativa(calc.notaFinal) : '-'}</td>
                     <td id="cual-${tKey}-${est.id}" class="p-1 font-bold text-slate-700 bg-slate-100 text-[9px] leading-tight">${tieneNota ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-'}</td>
                 </tr>`;
@@ -10040,9 +10051,9 @@ ${estilosHtml}
             const calc = calcularTrimestre(curso.calificaciones[estudianteId][tKey]);
             const tieneNota = calc.notaFinal !== '';
             const poner = (prefijo, texto) => { const el = document.getElementById(`${prefijo}-${tKey}-${estudianteId}`); if(el) el.innerText = texto; };
-            poner('pins', tieneNota ? numeroALetraCualitativa(calc.promedioInsumos) : '-');
-            poner('evalref', tieneNota ? numeroALetraCualitativa(calc.promedioEvalRef) : '-');
-            poner('proyrefp', tieneNota ? numeroALetraCualitativa(calc.proyectoVal) : '-');
+            poner('pins', calc.tieneInsumos ? numeroALetraCualitativa(calc.promedioInsumos) : '-');
+            poner('evalref', calc.tieneEvalRef ? numeroALetraCualitativa(calc.promedioEvalRef) : '-');
+            poner('proyrefp', calc.tieneProy ? numeroALetraCualitativa(calc.proyectoVal) : '-');
             poner('final', tieneNota ? numeroALetraCualitativa(calc.notaFinal) : '-');
             poner('cual', tieneNota ? nivelDestrezaCualitativa(calc.notaFinal).corto : '-');
         }
@@ -11776,12 +11787,12 @@ ${estilosHtml}
                         <td class="p-2 font-bold text-slate-400 bg-slate-50">${idx+1}</td>
                         <td class="p-2 text-left font-bold uppercase text-slate-900">${est.nombre}</td>
                         <td class="p-2 font-medium text-purple-800">${est.nee}</td>
-                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.promedioInsumos) : '-') : calc.promedioInsumos}</td>
-                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (notaF ? letraActa(calc.promedioInsumos) : '-') : calc.equivIns}</td>
-                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.promedioEvalRef) : '-') : calc.promedioEvalRef}</td>
-                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (notaF ? letraActa(calc.promedioEvalRef) : '-') : calc.equivEvalRef}</td>
-                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (notaF ? letraActa(calc.proyectoVal) : '-') : calc.proyectoVal}</td>
-                        <td class="p-2 font-mono bg-indigo-50 text-indigo-900">${esCualActa ? (notaF ? letraActa(calc.proyectoVal) : '-') : calc.equivProy}</td>
+                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (calc.tieneInsumos ? letraActa(calc.promedioInsumos) : '-') : calc.promedioInsumos}</td>
+                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (calc.tieneInsumos ? letraActa(calc.promedioInsumos) : '-') : calc.equivIns}</td>
+                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (calc.tieneEvalRef ? letraActa(calc.promedioEvalRef) : '-') : calc.promedioEvalRef}</td>
+                        <td class="p-2 font-mono bg-emerald-50 text-emerald-900">${esCualActa ? (calc.tieneEvalRef ? letraActa(calc.promedioEvalRef) : '-') : calc.equivEvalRef}</td>
+                        <td class="p-2 font-mono text-slate-600">${esCualActa ? (calc.tieneProy ? letraActa(calc.proyectoVal) : '-') : calc.proyectoVal}</td>
+                        <td class="p-2 font-mono bg-indigo-50 text-indigo-900">${esCualActa ? (calc.tieneProy ? letraActa(calc.proyectoVal) : '-') : calc.equivProy}</td>
                         <td class="p-2 font-black text-white bg-slate-900 font-mono text-sm">${(esCualActa ? letraActa(notaF) : notaF) || '-'}</td>
                         <td class="p-2 font-black text-slate-800 bg-slate-100">${notaF ? (esCualActa ? nivelDestrezaCualitativa(notaF).corto : obtenerEquivalenciaRGLOEI(notaF).sigla) : '-'}</td>
                         <td class="p-2 text-xxs ${claseRefuerzo}">${requiereRefuerzo}</td>
